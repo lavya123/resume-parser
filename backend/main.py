@@ -30,6 +30,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.post("/parse")
+async def parse_only(resume_file: UploadFile = File(...)):
+    resume_bytes = await resume_file.read()
+    resume_data = parse_resume(resume_bytes, resume_file.filename)
+    return resume_data
+
+
 
 # 4️⃣ API endpoint
 @app.post("/screen")
