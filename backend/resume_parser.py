@@ -6,12 +6,33 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 
-# Make sure NLTK resources are available
-nltk.download("punkt")
-nltk.download("stopwords")
-nltk.download("wordnet")
+# ----------------------------
+# SKILL DATABASE (editable)
+# ----------------------------
+SKILLS_DB = [
+    "strategic planning",
+    "problem solving",
+    "crisis management",
+    "creative thinking",
+    "data analysis",
+    "brand development",
+    "negotiation",
+    "customer orientation",
+    "adaptability",
+    "communication",
+    "ui ux design",
+    "graphic design",
+    "digital illustration",
+    "typography",
+    "design software",
+    "marketing",
+    "management"
+]
 
 
+# ----------------------------
+# TEXT EXTRACTION
+# ----------------------------
 def extract_text_from_pdf(file_bytes):
     text = ""
     with pdfplumber.open(BytesIO(file_bytes)) as pdf:
@@ -22,25 +43,11 @@ def extract_text_from_pdf(file_bytes):
     return text.lower()
 
 
-def extract_skills_from_section(text):
-    """
-    Extract skills ONLY from the skills section of the resume
-    """
-    # Try to capture content after "skill" or "skills"
-    match = re.search(
-        r"(skills|skill)(.*?)(education|experience|work|projects|$)",
-        text,
-        re.DOTALL
-    )
-
-    if not match:
-        return []
-
-    skills_text = match.group(2)
-
-    # Tokenize
-    tokens = word_tokenize(skills_text)
-
+# ----------------------------
+# CLEANING
+# ----------------------------
+def clean_text(text):
+    tokens = word_tokenize(text)
     stop_words = set(stopwords.words("english"))
     lemmatizer = WordNetLemmatizer()
 
@@ -50,18 +57,28 @@ def extract_skills_from_section(text):
         if token.isalpha() and token not in stop_words
     ]
 
-    # Reconstruct phrases (bigrams)
-    skills = set()
-    for i in range(len(cleaned_tokens) - 1):
-        phrase = cleaned_tokens[i] + " " + cleaned_tokens[i + 1]
-        skills.add(phrase)
-
-    # Also keep single-word skills
-    skills.update(cleaned_tokens)
-
-    return sorted(skills)
+    return cleaned_tokens
 
 
+# ----------------------------
+# SKILL EXTRACTION (DB MATCH)
+# ----------------------------
+def extract_skills(text):
+    cleaned_tokens = clean_text(text)
+    cleaned_text = " ".join(cleaned_tokens)
+
+    skills_found = []
+
+    for skill in SKILLS_DB:
+        if skill in cleaned_text:
+            skills_found.append(skill)
+
+    return list(set(skills_found))
+
+
+# ----------------------------
+# EXPERIENCE EXTRACTION
+# ----------------------------
 def extract_experience(text):
     matches = re.findall(r"(\d+)\s*(years|year)", text)
     if matches:
@@ -69,10 +86,18 @@ def extract_experience(text):
     return 0
 
 
+# ----------------------------
+# EDUCATION EXTRACTION
+# ----------------------------
 def extract_education(text):
     education_keywords = [
-        "bachelor", "master", "masters", "mba", "phd",
-        "university", "college"
+        "bachelor",
+        "master",
+        "masters",
+        "mba",
+        "phd",
+        "university",
+        "college"
     ]
 
     found = []
@@ -83,13 +108,16 @@ def extract_education(text):
     return list(set(found))
 
 
+# ----------------------------
+# MAIN PARSER
+# ----------------------------
 def parse_resume(file_bytes, filename):
     if filename.endswith(".pdf"):
         text = extract_text_from_pdf(file_bytes)
     else:
         text = file_bytes.decode("utf-8").lower()
 
-    skills = extract_skills_from_section(text)
+    skills = extract_skills(text)
     experience = extract_experience(text)
     education = extract_education(text)
 
